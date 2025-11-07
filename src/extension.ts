@@ -1,6 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { ConnectionsProvider } from './connectionsProvider';
 import { registerAddConnectionCommand } from './addConnection';
 
 
@@ -9,6 +10,10 @@ import { registerAddConnectionCommand } from './addConnection';
 export function activate(context: vscode.ExtensionContext) {
 	// Create a dedicated output channel for the extension
 	const outputChannel = vscode.window.createOutputChannel('Postgres Extension');
+
+	// Create and register the connections view
+	const connectionsProvider = new ConnectionsProvider(context);
+	vscode.window.registerTreeDataProvider('postgresView', connectionsProvider);
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
@@ -28,7 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 
-	registerAddConnectionCommand(context, outputChannel);
+	registerAddConnectionCommand(context, outputChannel, connectionsProvider);
 }
 
 // This method is called when your extension is deactivated
