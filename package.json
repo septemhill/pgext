@@ -6,6 +6,10 @@
   "engines": {
     "vscode": "^1.105.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/septemhill/vscodepg"
+  },
   "categories": [
     "Other"
   ],
@@ -37,15 +41,17 @@
         "title": "Hello World"
       },
       {
-        "command": "postgres.showTreeView",
-        "title": "Show Tree View"
+        "command": "postgres.addConnection",
+        "title": "Add Connection"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "postgres.showTreeView",
-          "when": "view == postgresView"
+          "command": "postgres.addConnection",
+          "when": "view == postgresView",
+          "group": "navigation",
+          "icon": "$(add)"
         }
       ]
     }
