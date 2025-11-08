@@ -42,7 +42,8 @@
       },
       {
         "command": "postgres.addConnection",
-        "title": "Add Connection"
+        "title": "Add Connection",
+        "icon": "$(add)"
       },
       {
         "command": "postgres.connect",
