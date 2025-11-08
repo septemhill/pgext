@@ -112,68 +112,62 @@ interface ConnectionsProvider {
 	refresh(): void;
 }
 
+async function handleTestConnection(panel: vscode.WebviewPanel, message: any) {
+	const { host, port, user, password, database } = message.data;
+	const client = new Client({ host, port: parseInt(port, 10), user, password, database, connectionTimeoutMillis: 5000 });
+	try {
+		await client.connect();
+		panel.webview.postMessage({ command: 'testConnectionResult', success: true });
+	} catch (error: any) {
+		panel.webview.postMessage({ command: 'testConnectionResult', success: false, error: error.message });
+	} finally {
+		await client.end();
+	}
+}
+
+async function handleSaveConnection(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, connectionsProvider: ConnectionsProvider, message: any) {
+	const { alias: inputAlias, host, port, user, password, database } = message.data;
+	const alias = inputAlias || `${user}@${host}`;
+
+	const existingConnections = context.globalState.get<any[]>('postgres.connections') || [];
+
+	if (existingConnections.some(c => c.alias === alias)) {
+		panel.webview.postMessage({ command: 'saveConnectionResult', success: false, error: `Alias "${alias}" already exists.` });
+		return;
+	}
+
+	const connectionSettings = {
+		alias,
+		host,
+		port,
+		user,
+		password,
+		database
+	};
+	existingConnections.push(connectionSettings);
+
+	await context.globalState.update('postgres.connections', existingConnections);
+
+	vscode.window.showInformationMessage('Connection saved successfully!');
+	connectionsProvider.refresh();
+
+	panel.dispose();
+}
 
 export function registerAddConnectionCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel, connectionsProvider: ConnectionsProvider) {
 	const addConnectionCommand = vscode.commands.registerCommand('postgres.addConnection', () => {
-
 		outputChannel.appendLine('Command "postgres.addConnection" was executed.');
-		const panel = vscode.window.createWebviewPanel(
-			'addPostgresConnection',
-			'Add Postgres Connection',
-			vscode.ViewColumn.One,
-			{ enableScripts: true }
-		);
+		const panel = vscode.window.createWebviewPanel('addPostgresConnection', 'Add Postgres Connection', vscode.ViewColumn.One, { enableScripts: true });
 
 		panel.webview.html = getWebviewContent();
 
-		panel.webview.onDidReceiveMessage(
-			async message => {
-				if (message.command === 'testConnection') {
-
-					const { host, port, user, password, database } = message.data;
-					const client = new Client({ host, port: parseInt(port, 10), user, password, database, connectionTimeoutMillis: 5000 });
-					try {
-						await client.connect();
-						panel.webview.postMessage({ command: 'testConnectionResult', success: true });
-					} catch (error: any) {
-						panel.webview.postMessage({ command: 'testConnectionResult', success: false, error: error.message });
-					} finally {
-						await client.end();
-					}
-				} else if (message.command === 'saveConnection') {
-					const { alias: inputAlias, host, port, user, password, database } = message.data;
-					const alias = inputAlias || `${user}@${host}`;
-
-					// Retrieve existing connections, or initialize an empty array
-					const existingConnections = context.globalState.get<any[]>('postgres.connections') || [];
-
-					if (existingConnections.some(c => c.alias === alias)) {
-						panel.webview.postMessage({ command: 'saveConnectionResult', success: false, error: `Alias "${alias}" already exists.` });
-						return;
-					}
-
-					const connectionSettings = {
-						alias,
-						host,
-						port,
-						user,
-						password,
-						database
-					};
-					existingConnections.push(connectionSettings);
-
-					// Save the connection settings to VS Code configuration
-					await context.globalState.update('postgres.connections', existingConnections);
-
-					vscode.window.showInformationMessage('Connection saved successfully!');
-					connectionsProvider.refresh();
-
-					panel.dispose();
-				}
-			},
-			undefined,
-			context.subscriptions
-		);
+		panel.webview.onDidReceiveMessage(async message => {
+			if (message.command === 'testConnection') {
+				await handleTestConnection(panel, message);
+			} else if (message.command === 'saveConnection') {
+				await handleSaveConnection(panel, context, connectionsProvider, message);
+			}
+		}, undefined, context.subscriptions);
 	});
 
 	context.subscriptions.push(addConnectionCommand);
