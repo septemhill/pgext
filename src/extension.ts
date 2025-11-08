@@ -4,8 +4,7 @@ import * as vscode from 'vscode';
 import { Client, FieldDef } from 'pg';
 import { ConnectionsProvider } from './connectionsProvider';
 import { registerAddConnectionCommand } from './addConnection';
-
-function createQueryWebviewPanel(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel, connection: any, client: Client) {
+function createQueryWebviewPanel(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel, connection: any, client: Client, connectionsProvider: ConnectionsProvider) {
 	const panel = vscode.window.createWebviewPanel(
 		'sqlQuery',
 		`Query: ${connection.alias || `${connection.user}@${connection.host}`}`,
@@ -47,7 +46,7 @@ function createQueryWebviewPanel(context: vscode.ExtensionContext, outputChannel
 		async () => {
 			await client.end();
 			outputChannel.appendLine(`Disconnected from ${connection.alias || `${connection.user}@${connection.host}`}.`);
-			panel.dispose();
+			connectionsProvider.setInactive(connection.alias || `${connection.user}@${connection.host}`);
 		},
 		null,
 		context.subscriptions
@@ -192,7 +191,12 @@ export function activate(context: vscode.ExtensionContext) {
 				await client.connect();
 				vscode.window.showInformationMessage(`Successfully connected to ${connection.alias || `${connection.user}@${connection.host}`}!`);
 				outputChannel.appendLine(`Successfully connected to ${connection.alias || `${connection.user}@${connection.host}`}!`);
-				createQueryWebviewPanel(context, outputChannel, connection, client);
+
+				const tablesResult = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;");
+				const tables = tablesResult.rows.map(row => row.table_name);
+				connectionsProvider.setActive(connectionItem.label as string, client, tables);
+
+				createQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider);
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Failed to connect: ${error.message}`);
 				outputChannel.appendLine(`Failed to connect to ${connection.alias || `${connection.user}@${connection.host}`}: ${error.message}`);
