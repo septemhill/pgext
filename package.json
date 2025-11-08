@@ -43,6 +43,21 @@
       {
         "command": "postgres.addConnection",
         "title": "Add Connection"
+      },
+      {
+        "command": "postgres.connect",
+        "title": "Connect to Database",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "postgres.editConnection",
+        "title": "Edit Connection",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "postgres.deleteConnection",
+        "title": "Delete Connection",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -52,6 +67,26 @@
           "when": "view == postgresView",
           "group": "navigation",
           "icon": "$(add)"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "postgres.connect",
+          "when": "view == postgresView && viewItem == connectionItem",
+          "group": "inline",
+          "icon": "$(plug)"
+        },
+        {
+          "command": "postgres.editConnection",
+          "when": "view == postgresView && viewItem == connectionItem",
+          "group": "inline",
+          "icon": "$(edit)"
+        },
+        {
+          "command": "postgres.deleteConnection",
+          "when": "view == postgresView && viewItem == connectionItem",
+          "group": "inline",
+          "icon": "$(trash)"
         }
       ]
     }

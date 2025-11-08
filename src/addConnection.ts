@@ -53,6 +53,7 @@ function getWebviewContent(): string {
 					const vscode = acquireVsCodeApi();
 
 					document.getElementById('test-connection').addEventListener('click', () => {
+						document.getElementById('result-message').textContent = '';
 						const host = document.getElementById('host').value;
 						const port = document.getElementById('port').value;
 						const user = document.getElementById('user').value;
@@ -66,6 +67,7 @@ function getWebviewContent(): string {
 					});
 
 					document.getElementById('save-connection').addEventListener('click', () => {
+						document.getElementById('result-message').textContent = '';
 						const alias = document.getElementById('alias').value;
 						const host = document.getElementById('host').value;
 						const port = document.getElementById('port').value;
@@ -91,6 +93,12 @@ function getWebviewContent(): string {
 								} else {
 									resultDiv.style.color = 'red';
 									resultDiv.textContent = 'Connection failed: ' + message.error;
+								}
+								break;
+							case 'saveConnectionResult':
+								if (!message.success) {
+									resultDiv.style.color = 'red';
+									resultDiv.textContent = 'Save failed: ' + message.error;
 								}
 								break;
 						}
@@ -133,18 +141,25 @@ export function registerAddConnectionCommand(context: vscode.ExtensionContext, o
 						await client.end();
 					}
 				} else if (message.command === 'saveConnection') {
-					const { alias, host, port, user, password, database } = message.data;
+					const { alias: inputAlias, host, port, user, password, database } = message.data;
+					const alias = inputAlias || `${user}@${host}`;
+
+					// Retrieve existing connections, or initialize an empty array
+					const existingConnections = context.globalState.get<any[]>('postgres.connections') || [];
+
+					if (existingConnections.some(c => c.alias === alias)) {
+						panel.webview.postMessage({ command: 'saveConnectionResult', success: false, error: `Alias "${alias}" already exists.` });
+						return;
+					}
+
 					const connectionSettings = {
-						alias: alias || `${user}@${host}`, // Provide a default alias if empty
+						alias,
 						host,
 						port,
 						user,
 						password,
 						database
 					};
-
-					// Retrieve existing connections, or initialize an empty array
-					const existingConnections = context.globalState.get<any[]>('postgres.connections') || [];
 					existingConnections.push(connectionSettings);
 
 					// Save the connection settings to VS Code configuration

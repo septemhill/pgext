@@ -30,6 +30,7 @@ export class ConnectionsProvider implements vscode.TreeDataProvider<vscode.TreeI
                 item.collapsibleState = vscode.TreeItemCollapsibleState.None;
                 item.tooltip = `${conn.user}@${conn.host}:${conn.port}/${conn.database}`;
                 item.iconPath = new vscode.ThemeIcon('database');
+                item.contextValue = 'connectionItem';
                 return item;
             });
 
