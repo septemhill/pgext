@@ -1,11 +1,20 @@
 const vscode = acquireVsCodeApi();
 const executeButton = document.getElementById('execute-button');
-const sqlEditor = document.getElementById('sql-editor');
+const sqlEditorElement = document.getElementById('sql-editor');
 const errorContainer = document.getElementById('error-container');
 const resultContainer = document.getElementById('result-container');
 
+const sqlEditor = CodeMirror.fromTextArea(sqlEditorElement, {
+	mode: 'text/x-sql',
+	lineNumbers: true,
+	theme: 'material-darker',
+	indentWithTabs: true,
+	smartIndent: true,
+	autofocus: true
+});
+
 executeButton.addEventListener('click', () => {
-	const sql = sqlEditor.value;
+	const sql = sqlEditor.getValue();
 	errorContainer.textContent = '';
 	resultContainer.innerHTML = '';
 	vscode.postMessage({ command: 'executeQuery', sql: sql });
