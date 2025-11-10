@@ -1,112 +1,32 @@
 import * as vscode from 'vscode';
 import { Client } from 'pg';
+import * as fs from 'fs';
+import * as path from 'path';
 
-function getWebviewContent(connection?: any, originalAlias?: string): string {
-	return `<!DOCTYPE html>
-			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<title>Add Postgres Connection</title>
-				<style>
-					body { font-family: sans-serif; padding: 0 20px; }
-					.form-group { margin-bottom: 15px; }
-					label { display: block; margin-bottom: 5px; }
-					input { width: 100%; padding: 8px; box-sizing: border-box; }
-					.buttons { margin-top: 20px; }
-					button { padding: 10px 15px; margin-right: 10px; }
-				</style>
-			</head>
-			<body>
-				<h1>Add New Connection</h1>
-				<div class="form-group">
-					<label for="alias">Alias</label>
-					<input id="alias" type="text" value="${connection?.alias || ''}" />
-				</div>
-				<div class="form-group">
-					<label for="host">Host</label>
-					<input id="host" type="text" value="${connection?.host || ''}" />
-				</div>
-				<div class="form-group">
-					<label for="port">Port</label>
-					<input id="port" type="number" value="${connection?.port || '5432'}" />
-				</div>
-				<div class="form-group">
-					<label for="user">User</label>
-					<input id="user" type="text" value="${connection?.user || ''}" />
-				</div>
-				<div class="form-group">
-					<label for="password">Password</label>
-					<input id="password" type="password" value="${connection?.password || ''}" />
-				</div>
-				<div class="form-group">
-					<label for="database">Database</label>
-					<input id="database" type="text" value="${connection?.database || ''}" />
-				</div>
-				<div class="buttons">
-					<button id="test-connection">Test Connection</button>
-					<button id="save-connection">Save Connection</button>
-				</div>
-				<div id="result-message" style="margin-top: 15px;"></div>
+export function getWebviewContent(
+	context: vscode.ExtensionContext,
+	connection?: any,
+	originalAlias?: string
+): string {
+	const htmlPath = path.join(context.extensionPath, 'media', 'PgAddConnectionWebView.html');
+	let html = fs.readFileSync(htmlPath, 'utf8');
 
-				<script>
-					const vscode = acquireVsCodeApi();
+	const replacements: Record<string, string> = {
+		alias: connection?.alias || '',
+		host: connection?.host || '',
+		port: connection?.port?.toString() || '5432',
+		user: connection?.user || '',
+		password: connection?.password || '',
+		database: connection?.database || '',
+		originalAlias: originalAlias || ''
+	};
 
-					document.getElementById('test-connection').addEventListener('click', () => {
-						document.getElementById('result-message').textContent = '';
-						const host = document.getElementById('host').value;
-						const port = document.getElementById('port').value;
-						const user = document.getElementById('user').value;
-						const password = document.getElementById('password').value;
-						const database = document.getElementById('database').value;
+	for (const [key, value] of Object.entries(replacements)) {
+		const regex = new RegExp(`{{${key}}}`, 'g');
+		html = html.replace(regex, value);
+	}
 
-						vscode.postMessage({
-							command: 'testConnection',
-							data: { host, port, user, password, database }
-						});
-					});
-
-					document.getElementById('save-connection').addEventListener('click', () => {
-						document.getElementById('result-message').textContent = '';
-						const alias = document.getElementById('alias').value;
-						const host = document.getElementById('host').value;
-						const port = document.getElementById('port').value;
-						const user = document.getElementById('user').value;
-						const password = document.getElementById('password').value;
-						const database = document.getElementById('database').value;
-						vscode.postMessage({
-							command: 'saveConnection',
-							originalAlias: '${originalAlias || ''}',
-							data: { alias, host, port, user, password, database },
-						});
-					});
-
-
-					window.addEventListener('message', event => {
-						const message = event.data;
-						const resultDiv = document.getElementById('result-message');
-
-						switch (message.command) {
-							case 'testConnectionResult':
-								if (message.success) {
-									resultDiv.style.color = 'green';
-									resultDiv.textContent = 'Connection successful!';
-								} else {
-									resultDiv.style.color = 'red';
-									resultDiv.textContent = 'Connection failed: ' + message.error;
-								}
-								break;
-							case 'saveConnectionResult':
-								if (!message.success) {
-									resultDiv.style.color = 'red';
-									resultDiv.textContent = 'Save failed: ' + message.error;
-								}
-								break;
-						}
-					});
-				</script>
-			</body>
-			</html>`;
+	return html;
 }
 
 interface ConnectionsProvider {
@@ -172,7 +92,7 @@ export function createConnectionPanel(context: vscode.ExtensionContext, outputCh
 
 	const panel = vscode.window.createWebviewPanel('addPostgresConnection', title, vscode.ViewColumn.One, { enableScripts: true });
 
-	panel.webview.html = getWebviewContent(connectionToEdit, originalAlias);
+	panel.webview.html = getWebviewContent(context, connectionToEdit, originalAlias);
 
 	panel.webview.onDidReceiveMessage(async message => {
 		if (message.command === 'testConnection') {
