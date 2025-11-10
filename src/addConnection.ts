@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { Client } from 'pg';
-import * as fs from 'fs';
 import * as path from 'path';
 
 // Constants
@@ -12,30 +11,43 @@ const COMMAND_SAVE_CONNECTION = 'saveConnection';
 const COMMAND_TEST_CONNECTION_RESULT = 'testConnectionResult';
 const COMMAND_SAVE_CONNECTION_RESULT = 'saveConnectionResult';
 
+function getNonce() {
+	let text = '';
+	const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	for (let i = 0; i < 32; i++) {
+		text += possible.charAt(Math.floor(Math.random() * possible.length));
+	}
+	return text;
+}
+
 export function getWebviewContent(
 	context: vscode.ExtensionContext,
+	panel: vscode.WebviewPanel,
 	connection?: any,
 	originalAlias?: string
 ): string {
-	const htmlPath = path.join(context.extensionPath, 'media', 'PgAddConnectionWebView.html');
-	let html = fs.readFileSync(htmlPath, 'utf8');
+	const scriptUri = panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview', 'main.js'));
+	const nonce = getNonce();
 
-	const replacements: Record<string, string> = {
+	const initialData = {
 		alias: connection?.alias || '',
 		host: connection?.host || '',
 		port: connection?.port?.toString() || '5432',
 		user: connection?.user || '',
 		password: connection?.password || '',
 		database: connection?.database || '',
-		originalAlias: originalAlias || ''
+		originalAlias: originalAlias || '',
 	};
 
-	for (const [key, value] of Object.entries(replacements)) {
-		const regex = new RegExp(`{{${key}}}`, 'g');
-		html = html.replace(regex, value);
-	}
-
-	return html;
+	return `<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Postgres Connection</title>
+			<script nonce="${nonce}">window.initialData = ${JSON.stringify(initialData)}; window.view = 'addConnection';</script>
+		</head>
+		<body><div id="root"></div><script nonce="${nonce}" src="${scriptUri}"></script></body>
+		</html>`;
 }
 
 interface ConnectionsProvider {
@@ -101,7 +113,7 @@ export function createConnectionPanel(context: vscode.ExtensionContext, outputCh
 
 	const panel = vscode.window.createWebviewPanel(WEBVIEW_PANEL_TYPE, title, vscode.ViewColumn.One, { enableScripts: true });
 
-	panel.webview.html = getWebviewContent(context, connectionToEdit, originalAlias);
+	panel.webview.html = getWebviewContent(context, panel, connectionToEdit, originalAlias);
 
 	panel.webview.onDidReceiveMessage(async message => {
 		if (message.command === COMMAND_TEST_CONNECTION) {

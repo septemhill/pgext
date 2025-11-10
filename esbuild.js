@@ -1,56 +1,49 @@
-const esbuild = require("esbuild");
+const esbuild = require('esbuild');
+const path = require('path');
 
-const production = process.argv.includes('--production');
-const watch = process.argv.includes('--watch');
+const isWatch = process.argv.includes('--watch');
+const isProduction = process.argv.includes('--production');
 
-/**
- * @type {import('esbuild').Plugin}
- */
-const esbuildProblemMatcherPlugin = {
-	name: 'esbuild-problem-matcher',
-
-	setup(build) {
-		build.onStart(() => {
-			console.log('[watch] build started');
-		});
-		build.onEnd((result) => {
-			result.errors.forEach(({ text, location }) => {
-				console.error(`✘ [ERROR] ${text}`);
-				console.error(`    ${location.file}:${location.line}:${location.column}:`);
-			});
-			console.log('[watch] build finished');
-		});
-	},
+const extensionConfig = {
+  entryPoints: ['src/extension.ts'],
+  bundle: true,
+  outfile: 'dist/extension.js',
+  external: ['vscode'],
+  format: 'cjs',
+  platform: 'node',
+  sourcemap: !isProduction,
+  minify: isProduction,
 };
 
-async function main() {
-	const ctx = await esbuild.context({
-		entryPoints: [
-			'src/extension.ts'
-		],
-		bundle: true,
-		format: 'cjs',
-		minify: production,
-		sourcemap: !production,
-		sourcesContent: false,
-		platform: 'node',
-		outfile: 'dist/extension.js',
-		external: ['vscode'],
-		logLevel: 'silent',
-		plugins: [
-			/* add to the end of plugins array */
-			esbuildProblemMatcherPlugin,
-		],
-	});
-	if (watch) {
-		await ctx.watch();
-	} else {
-		await ctx.rebuild();
-		await ctx.dispose();
-	}
+const webviewConfig = {
+  entryPoints: ['src/webview/main.tsx'],
+  bundle: true,
+  outfile: 'dist/webview/main.js',
+  format: 'iife',
+  platform: 'browser',
+  sourcemap: !isProduction,
+  minify: isProduction,
+  loader: {
+    '.ts': 'tsx'
+  }
+};
+
+async function build() {
+  try {
+    if (isWatch) {
+      console.log('[watch] build started');
+      esbuild.context(extensionConfig).then(ctx => ctx.watch());
+      esbuild.context(webviewConfig).then(ctx => ctx.watch());
+    } else {
+      console.log('[build] build started');
+      await esbuild.build(extensionConfig);
+      await esbuild.build(webviewConfig);
+      console.log('[build] finished');
+    }
+  } catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
 }
 
-main().catch(e => {
-	console.error(e);
-	process.exit(1);
-});
+build();

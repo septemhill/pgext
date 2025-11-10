@@ -1,20 +1,30 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import * as path from 'path';
 import { Client, FieldDef } from 'pg';
 import { ConnectionsProvider } from './connectionsProvider';
 
-export function getSQLWebviewContent(context: vscode.ExtensionContext, webview: vscode.Webview): string {
-	const htmlPath = path.join(context.extensionPath, 'media', 'PgSQLInputWebView.html');
-	let html = fs.readFileSync(htmlPath, 'utf8');
+function getNonce() {
+	let text = '';
+	const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	for (let i = 0; i < 32; i++) {
+		text += possible.charAt(Math.floor(Math.random() * possible.length));
+	}
+	return text;
+}
 
-	const scriptPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'sql_webview.js');
-	const scriptUri = webview.asWebviewUri(scriptPath);
+export function getSQLWebviewContent(context: vscode.ExtensionContext, panel: vscode.WebviewPanel): string {
+	const scriptUri = panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview', 'main.js'));
+	const nonce = getNonce();
 
-	// 取代模板佔位符
-	html = html.replace('{{webviewScriptUri}}', scriptUri.toString());
-
-	return html;
+	return `<!DOCTYPE html>
+		<html lang="en">
+		<head>
+			<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>SQL Query</title>
+			<script nonce="${nonce}">window.view = 'sqlQuery';</script>
+		</head>
+		<body><div id="root"></div><script nonce="${nonce}" src="${scriptUri}"></script></body>
+		</html>`;
 }
 
 export function createQueryWebviewPanel(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel, connection: any, client: Client, connectionsProvider: ConnectionsProvider) {
@@ -28,8 +38,7 @@ export function createQueryWebviewPanel(context: vscode.ExtensionContext, output
 		}
 	);
 
-	panel.webview.html = getSQLWebviewContent(context, panel.webview);
-	outputChannel.appendLine(`Query Webview HTML content: ${panel.webview.html}`);
+	panel.webview.html = getSQLWebviewContent(context, panel);
 
 	panel.webview.onDidReceiveMessage(
 		async message => {

@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { Client } from 'pg';
 import { ConnectionsProvider, ActiveConnection } from './connectionsProvider';
-import { registerAddConnectionCommand, createConnectionPanel } from './addConnection';
+import { registerAddConnectionCommand, createConnectionPanel } from './addConnection.ts';
 import { createQueryWebviewPanel } from './queryWebview';
 
 // Constants
