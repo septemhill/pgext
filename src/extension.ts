@@ -2,8 +2,8 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { Client } from 'pg';
-import { ConnectionsProvider } from './connectionsProvider';
-import { registerAddConnectionCommand } from './addConnection';
+import { ConnectionsProvider, ActiveConnection } from './connectionsProvider';
+import { registerAddConnectionCommand, createConnectionPanel } from './addConnection';
 import { createQueryWebviewPanel } from './queryWebview';
 
 // This method is called when your extension is activated
@@ -79,11 +79,17 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('postgres.editConnection', (connectionItem: vscode.TreeItem) => {
-			outputChannel.appendLine(`Editing connection ${connectionItem.label}`);
-			vscode.window.showInformationMessage(`Editing connection ${connectionItem.label}`);
-			// TODO: Implement actual edit logic here (e.g., open a webview for editing)
-			// This would be similar to addConnection but pre-filled with existing data
-			// and would update the connection instead of adding a new one.
+			const connectionLabel = connectionItem.label as string;
+			outputChannel.appendLine(`Editing connection ${connectionLabel}`);
+
+			const connections = context.globalState.get<any[]>('postgres.connections') || [];
+			const connectionToEdit = connections.find(c => (c.alias || `${c.user}@${c.host}`) === connectionLabel);
+
+			if (connectionToEdit) {
+				createConnectionPanel(context, outputChannel, connectionsProvider, connectionToEdit);
+			} else {
+				vscode.window.showErrorMessage(`Connection "${connectionLabel}" not found.`);
+			}
 		})
 	);
 

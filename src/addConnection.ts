@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Client } from 'pg';
 
-function getWebviewContent(): string {
+function getWebviewContent(connection?: any, originalAlias?: string): string {
 	return `<!DOCTYPE html>
 			<html lang="en">
 			<head>
@@ -21,31 +21,31 @@ function getWebviewContent(): string {
 				<h1>Add New Connection</h1>
 				<div class="form-group">
 					<label for="alias">Alias</label>
-					<input id="alias" type="text" />
+					<input id="alias" type="text" value="${connection?.alias || ''}" />
 				</div>
 				<div class="form-group">
 					<label for="host">Host</label>
-					<input id="host" type="text" />
+					<input id="host" type="text" value="${connection?.host || ''}" />
 				</div>
 				<div class="form-group">
 					<label for="port">Port</label>
-					<input id="port" type="number" value="5432" />
+					<input id="port" type="number" value="${connection?.port || '5432'}" />
 				</div>
 				<div class="form-group">
 					<label for="user">User</label>
-					<input id="user" type="text" />
+					<input id="user" type="text" value="${connection?.user || ''}" />
 				</div>
 				<div class="form-group">
 					<label for="password">Password</label>
-					<input id="password" type="password" />
+					<input id="password" type="password" value="${connection?.password || ''}" />
 				</div>
 				<div class="form-group">
 					<label for="database">Database</label>
-					<input id="database" type="text" />
+					<input id="database" type="text" value="${connection?.database || ''}" />
 				</div>
 				<div class="buttons">
 					<button id="test-connection">Test Connection</button>
-					<button id="save-connection">Save</button>
+					<button id="save-connection">Save Connection</button>
 				</div>
 				<div id="result-message" style="margin-top: 15px;"></div>
 
@@ -76,7 +76,8 @@ function getWebviewContent(): string {
 						const database = document.getElementById('database').value;
 						vscode.postMessage({
 							command: 'saveConnection',
-							data: { alias, host, port, user, password, database }
+							originalAlias: '${originalAlias || ''}',
+							data: { alias, host, port, user, password, database },
 						});
 					});
 
@@ -125,28 +126,39 @@ async function handleTestConnection(panel: vscode.WebviewPanel, message: any) {
 	}
 }
 
-async function handleSaveConnection(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, connectionsProvider: ConnectionsProvider, message: any) {
+async function handleSaveConnection(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, connectionsProvider: ConnectionsProvider, message: { data: any, originalAlias?: string }) {
 	const { alias: inputAlias, host, port, user, password, database } = message.data;
 	const alias = inputAlias || `${user}@${host}`;
 
-	const existingConnections = context.globalState.get<any[]>('postgres.connections') || [];
+	let connections = context.globalState.get<any[]>('postgres.connections') || [];
 
-	if (existingConnections.some(c => c.alias === alias)) {
-		panel.webview.postMessage({ command: 'saveConnectionResult', success: false, error: `Alias "${alias}" already exists.` });
-		return;
+	if (message.originalAlias) {
+		// Editing existing connection
+		const connectionIndex = connections.findIndex(c => (c.alias || `${c.user}@${c.host}`) === message.originalAlias);
+		if (connectionIndex === -1) {
+			panel.webview.postMessage({ command: 'saveConnectionResult', success: false, error: `Original connection "${message.originalAlias}" not found.` });
+			return;
+		}
+
+		// If alias is changed, check for conflicts
+		if (message.originalAlias !== alias && connections.some((c, i) => (c.alias || `${c.user}@${c.host}`) === alias && i !== connectionIndex)) {
+			panel.webview.postMessage({ command: 'saveConnectionResult', success: false, error: `Alias "${alias}" already exists.` });
+			return;
+		}
+
+		connections[connectionIndex] = { alias, host, port, user, password, database };
+	} else {
+		// Adding new connection
+		if (connections.some(c => (c.alias || `${c.user}@${c.host}`) === alias)) {
+			panel.webview.postMessage({ command: 'saveConnectionResult', success: false, error: `Alias "${alias}" already exists.` });
+			return;
+		}
+
+		const newConnection = { alias, host, port, user, password, database };
+		connections.push(newConnection);
 	}
 
-	const connectionSettings = {
-		alias,
-		host,
-		port,
-		user,
-		password,
-		database
-	};
-	existingConnections.push(connectionSettings);
-
-	await context.globalState.update('postgres.connections', existingConnections);
+	await context.globalState.update('postgres.connections', connections);
 
 	vscode.window.showInformationMessage('Connection saved successfully!');
 	connectionsProvider.refresh();
@@ -154,20 +166,27 @@ async function handleSaveConnection(panel: vscode.WebviewPanel, context: vscode.
 	panel.dispose();
 }
 
+export function createConnectionPanel(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel, connectionsProvider: ConnectionsProvider, connectionToEdit?: any) {
+	const title = connectionToEdit ? 'Edit Postgres Connection' : 'Add Postgres Connection';
+	const originalAlias = connectionToEdit ? (connectionToEdit.alias || `${connectionToEdit.user}@${connectionToEdit.host}`) : undefined;
+
+	const panel = vscode.window.createWebviewPanel('addPostgresConnection', title, vscode.ViewColumn.One, { enableScripts: true });
+
+	panel.webview.html = getWebviewContent(connectionToEdit, originalAlias);
+
+	panel.webview.onDidReceiveMessage(async message => {
+		if (message.command === 'testConnection') {
+			await handleTestConnection(panel, message);
+		} else if (message.command === 'saveConnection') {
+			await handleSaveConnection(panel, context, connectionsProvider, message);
+		}
+	}, undefined, context.subscriptions);
+}
+
 export function registerAddConnectionCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel, connectionsProvider: ConnectionsProvider) {
 	const addConnectionCommand = vscode.commands.registerCommand('postgres.addConnection', () => {
 		outputChannel.appendLine('Command "postgres.addConnection" was executed.');
-		const panel = vscode.window.createWebviewPanel('addPostgresConnection', 'Add Postgres Connection', vscode.ViewColumn.One, { enableScripts: true });
-
-		panel.webview.html = getWebviewContent();
-
-		panel.webview.onDidReceiveMessage(async message => {
-			if (message.command === 'testConnection') {
-				await handleTestConnection(panel, message);
-			} else if (message.command === 'saveConnection') {
-				await handleSaveConnection(panel, context, connectionsProvider, message);
-			}
-		}, undefined, context.subscriptions);
+		createConnectionPanel(context, outputChannel, connectionsProvider);
 	});
 
 	context.subscriptions.push(addConnectionCommand);

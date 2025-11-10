@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Client } from 'pg';
 
-interface ActiveConnection {
+export interface ActiveConnection {
     client: Client;
     tables: string[];
 }
