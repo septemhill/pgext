@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>SQL Query</title>
+	<style>
+		body { 
+			font-family: sans-serif; 
+			display: flex; 
+			flex-direction: column; 
+			height: 100vh; 
+			margin: 0; 
+			color: var(--vscode-editor-foreground);
+			background-color: var(--vscode-editor-background);
+		}
+		.editor-container { padding: 10px; }
+		#sql-editor { 
+			width: 100%; 
+			height: 150px; 
+			box-sizing: border-box;
+			background-color: var(--vscode-input-background);
+			color: var(--vscode-input-foreground);
+			border: 1px solid var(--vscode-input-border);
+		}
+		.error-container { padding: 10px; color: red; }
+		.result-container { flex-grow: 1; overflow: auto; padding: 10px; }
+		table { border-collapse: collapse; width: 100%; }
+		th, td { border: 1px solid var(--vscode-panel-border); padding: 8px; text-align: left; }
+		th { 
+			background-color: var(--vscode-side-bar-background);
+			color: var(--vscode-editor-foreground);
+		}
+		button {
+			background-color: var(--vscode-button-background);
+			color: var(--vscode-button-foreground);
+			border: 1px solid var(--vscode-button-border);
+			padding: 4px 8px;
+			margin-top: 5px;
+		}
+		button:hover {
+			background-color: var(--vscode-button-hover-background);
+		}
+	</style>
+</head>
+<body>
+	<div class="editor-container">
+		<textarea id="sql-editor" placeholder="Enter your SQL query here..."></textarea>
+		<button id="execute-button">Execute</button>
+	</div>
+	<div id="error-container" class="error-container"></div>
+	<div id="result-container" class="result-container"></div>
+	<script src="{{webviewScriptUri}}"></script>
+</body>
+</html>
