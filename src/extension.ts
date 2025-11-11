@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { Client } from 'pg';
 import { ConnectionsProvider, ActiveConnection } from './connectionsProvider';
-import { registerAddConnectionCommand, createConnectionPanel } from './addConnection.ts';
+import { registerAddConnectionCommand, createConnectionPanel } from './addConnection';
 import { createQueryWebviewPanel } from './queryWebview';
 
 // Constants
@@ -49,8 +49,14 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register new commands for connection actions
 	context.subscriptions.push(
 		vscode.commands.registerCommand(COMMAND_CONNECT, async (connectionItem: vscode.TreeItem) => {
+			const fullLabel = connectionItem.label as string;
+			// The label is in the format "alias (dbType)", so we extract the alias part.
+			// This is a bit of a hack. A better way would be to store the alias in a custom property of the TreeItem.
+			// For now, we'll parse it from the label.
+			const connectionLabel = fullLabel.substring(0, fullLabel.lastIndexOf(' (')).trim();
+
 			const connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
-			const connection = connections.find(c => (c.alias || `${c.user}@${c.host}`) === connectionItem.label as string);
+			const connection = connections.find(c => (c.alias || `${c.user}@${c.host}`) === connectionLabel);
 
 			if (!connection) {
 				vscode.window.showErrorMessage('Connection details not found.');
@@ -76,7 +82,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 				const tablesResult = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;");
 				const tables = tablesResult.rows.map(row => row.table_name);
-				connectionsProvider.setActive(connectionItem.label as string, client, tables);
+				connectionsProvider.setActive(connectionLabel, client, tables);
 
 				createQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider);
 			} catch (error: any) {
@@ -89,7 +95,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand(COMMAND_EDIT_CONNECTION, (connectionItem: vscode.TreeItem) => {
-			const connectionLabel = connectionItem.label as string;
+			const fullLabel = connectionItem.label as string;
+			// The label is in the format "alias (dbType)", so we extract the alias part.
+			const connectionLabel = fullLabel.substring(0, fullLabel.lastIndexOf(' (')).trim();
+
 			outputChannel.appendLine(`Editing connection ${connectionLabel}`);
 
 			const connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
@@ -105,19 +114,24 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand(COMMAND_DELETE_CONNECTION, async (connectionItem: vscode.TreeItem) => {
+			const fullLabel = connectionItem.label as string;
+			// The label is in the format "alias (dbType)", so we extract the alias part.
+			const connectionLabel = fullLabel.substring(0, fullLabel.lastIndexOf(' (')).trim();
+
 			const confirm = await vscode.window.showWarningMessage(
-				`Are you sure you want to delete the connection "${connectionItem.label}"?`,
+				`Are you sure you want to delete the connection "${connectionLabel}"?`,
 				{ modal: true },
 				'Yes'
 			);
 
 			if (confirm === 'Yes') {
 				let connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
-				const updatedConnections = connections.filter(c => (c.alias || `${c.user}@${c.host}`) !== connectionItem.label);
+				const updatedConnections = connections.filter(c => (c.alias || `${c.user}@${c.host}`) !== connectionLabel);
 
 				outputChannel.appendLine(`Updated connections: ${JSON.stringify(updatedConnections)}`); // Add this line
 				await context.globalState.update(CONNECTIONS_KEY, updatedConnections);
 				connectionsProvider.refresh();
+				connectionsProvider.setInactive(connectionLabel);
 
 				outputChannel.appendLine(`Deleting connection ${connectionItem.label}`);
 				vscode.window.showInformationMessage(`Successfully deleted connection "${connectionItem.label}"`);
