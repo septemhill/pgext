@@ -50,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand(COMMAND_CONNECT, async (connectionItem: vscode.TreeItem) => {
 			const connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
-			const connection = connections.find(c => (c.alias || `${c.user}@${c.host}`) === connectionItem.label);
+			const connection = connections.find(c => (c.alias || `${c.user}@${c.host}`) === connectionItem.label as string);
 
 			if (!connection) {
 				vscode.window.showErrorMessage('Connection details not found.');
@@ -115,6 +115,7 @@ export function activate(context: vscode.ExtensionContext) {
 				let connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
 				const updatedConnections = connections.filter(c => (c.alias || `${c.user}@${c.host}`) !== connectionItem.label);
 
+				outputChannel.appendLine(`Updated connections: ${JSON.stringify(updatedConnections)}`); // Add this line
 				await context.globalState.update(CONNECTIONS_KEY, updatedConnections);
 				connectionsProvider.refresh();
 

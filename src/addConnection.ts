@@ -68,7 +68,7 @@ async function handleTestConnection(panel: vscode.WebviewPanel, message: any) {
 }
 
 async function handleSaveConnection(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, connectionsProvider: ConnectionsProvider, message: { data: any, originalAlias?: string }) {
-	const { alias: inputAlias, host, port, user, password, database } = message.data;
+	const { alias: inputAlias, host, port, user, password, database, dbType } = message.data;
 	const alias = inputAlias || `${user}@${host}`;
 
 	let connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
@@ -87,7 +87,7 @@ async function handleSaveConnection(panel: vscode.WebviewPanel, context: vscode.
 			return;
 		}
 
-		connections[connectionIndex] = { alias, host, port, user, password, database };
+		connections[connectionIndex] = { alias, host, port, user, password, database, dbType };
 	} else {
 		// Adding new connection
 		if (connections.some(c => (c.alias || `${c.user}@${c.host}`) === alias)) {
@@ -95,7 +95,7 @@ async function handleSaveConnection(panel: vscode.WebviewPanel, context: vscode.
 			return;
 		}
 
-		const newConnection = { alias, host, port, user, password, database };
+		const newConnection = { alias, host, port, user, password, database, dbType };
 		connections.push(newConnection);
 	}
 
