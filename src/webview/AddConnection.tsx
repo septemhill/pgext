@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { vscodeApi } from './vscode';
 import PostgresConnectionForm from './PostgresConnectionForm';
+import RedisConnectionForm from './RedisConnectionForm';
 
 // @ts-ignore
 const initialData = window.initialData || {};
@@ -8,7 +9,7 @@ const initialData = window.initialData || {};
 const AddConnection: React.FC = () => {
   const [alias, setAlias] = useState(initialData.alias || '');
   const [host, setHost] = useState(initialData.host || '');
-  const [port, setPort] = useState(initialData.port || '5432');
+  const [port, setPort] = useState(initialData.port || '');
   const [user, setUser] = useState(initialData.user || '');
   const [password, setPassword] = useState(initialData.password || '');
   const [database, setDatabase] = useState(initialData.database || '');
@@ -16,6 +17,14 @@ const AddConnection: React.FC = () => {
   const [dbType, setDbType] = useState('postgres');
 
   useEffect(() => {
+    // Set default port based on dbType
+    if (!initialData.port) {
+      if (dbType === 'postgres') {
+        setPort('5432');
+      } else if (dbType === 'redis') {
+        setPort('6379');
+      }
+    }
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
       switch (message.command) {
@@ -35,11 +44,21 @@ const AddConnection: React.FC = () => {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [dbType, initialData.port]);
 
   const handleTestConnection = () => {
     setResultMessage(null);
-    vscodeApi.postMessage({ command: 'testConnection', data: { host, port, user, password, database } });
+    const connectionData = {
+      dbType,
+      host,
+      port,
+      user,
+      password,
+      database,
+    };
+    vscodeApi.postMessage({
+      command: 'testConnection', data: connectionData
+    });
   };
 
   const handleSaveConnection = () => {
@@ -56,8 +75,15 @@ const AddConnection: React.FC = () => {
       <h1>{initialData.originalAlias ? 'Edit' : 'Add'} Connection</h1>
       <div className="form-group">
         <label htmlFor="dbType">Database Type</label>
-        <select id="dbType" value={dbType} onChange={(e) => setDbType(e.target.value)}>
+        <select id="dbType" value={dbType} onChange={(e) => {
+          const newDbType = e.target.value;
+          setDbType(newDbType);
+          // Reset fields that are not common
+          setUser('');
+          setDatabase('');
+        }}>
           <option value="postgres">Postgres</option>
+          <option value="redis">Redis</option>
         </select>
       </div>
 
@@ -69,6 +95,15 @@ const AddConnection: React.FC = () => {
           user={user} setUser={setUser}
           password={password} setPassword={setPassword}
           database={database} setDatabase={setDatabase}
+        />
+      )}
+
+      {dbType === 'redis' && (
+        <RedisConnectionForm
+          alias={alias} setAlias={setAlias}
+          host={host} setHost={setHost}
+          port={port} setPort={setPort}
+          password={password} setPassword={setPassword}
         />
       )}
 

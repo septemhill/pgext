@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { Client } from 'pg';
+import { createClient } from 'redis';
 import * as path from 'path';
 
 // Constants
@@ -36,6 +37,7 @@ export function getWebviewContent(
 		user: connection?.user || '',
 		password: connection?.password || '',
 		database: connection?.database || '',
+		dbType: connection?.dbType || 'postgres', // Add dbType to initialData
 		originalAlias: originalAlias || '',
 	};
 
@@ -55,16 +57,36 @@ interface ConnectionsProvider {
 }
 
 async function handleTestConnection(panel: vscode.WebviewPanel, message: any) {
-	const { host, port, user, password, database } = message.data;
-	const client = new Client({ host, port: parseInt(port, 10), user, password, database, connectionTimeoutMillis: 5000 });
-	try {
-		await client.connect();
-		panel.webview.postMessage({ command: COMMAND_TEST_CONNECTION_RESULT, success: true });
-	} catch (error: any) {
-		panel.webview.postMessage({ command: COMMAND_TEST_CONNECTION_RESULT, success: false, error: error.message });
-	} finally {
-		await client.end();
+	const { dbType, host, port, user, password, database } = message.data;
+	if (dbType === 'postgres') {
+		const client = new Client({ host, port: parseInt(port, 10), user, password, database, connectionTimeoutMillis: 5000 });
+		try {
+			await client.connect();
+			panel.webview.postMessage({ command: COMMAND_TEST_CONNECTION_RESULT, success: true });
+		} catch (error: any) {
+			panel.webview.postMessage({ command: COMMAND_TEST_CONNECTION_RESULT, success: false, error: error.message });
+		} finally {
+			await client.end();
+		}
+	} else if (dbType === 'redis') {
+		const client = createClient({
+			socket: {
+				host: host,
+				port: parseInt(port, 10),
+				connectTimeout: 5000
+			},
+			password: password
+		});
+		try {
+			await client.connect();
+			panel.webview.postMessage({ command: COMMAND_TEST_CONNECTION_RESULT, success: true });
+		} catch (error: any) {
+			panel.webview.postMessage({ command: COMMAND_TEST_CONNECTION_RESULT, success: false, error: error.message });
+		} finally {
+			await client.quit();
+		}
 	}
+
 }
 
 async function handleSaveConnection(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, connectionsProvider: ConnectionsProvider, message: { data: any, originalAlias?: string }) {

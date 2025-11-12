@@ -111,6 +111,7 @@
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "@types/redis": "^4.0.10",
     "@types/vscode": "^1.105.0",
     "@types/vscode-webview": "^1.57.5",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
@@ -130,6 +131,7 @@
     "@uiw/react-codemirror": "^4.25.3",
     "pg": "^8.16.3",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react-dom": "^17.0.2",
+    "redis": "^5.9.0"
   }
 }

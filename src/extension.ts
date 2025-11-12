@@ -1,10 +1,12 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { createClient as createRedisClient } from 'redis';
 import { Client } from 'pg';
 import { ConnectionsProvider, ActiveConnection } from './connectionsProvider';
 import { registerAddConnectionCommand, createConnectionPanel } from './addConnection';
-import { createQueryWebviewPanel } from './queryWebview';
+import { createQueryWebviewPanel } from './pgQueryWebview';
+import { createRedisQueryWebviewPanel } from './redisQueryWebview';
 
 // Constants
 const OUTPUT_CHANNEL_NAME = 'Postgres Extension';
@@ -66,29 +68,52 @@ export function activate(context: vscode.ExtensionContext) {
 			outputChannel.appendLine(`Connecting to ${connection.alias || `${connection.user}@${connection.host}`}`);
 			vscode.window.showInformationMessage(`Connecting to ${connection.alias || `${connection.user}@${connection.host}`}`);
 
-			const client = new Client({
-				host: connection.host,
-				port: parseInt(connection.port, 10),
-				user: connection.user,
-				password: connection.password,
-				database: connection.database,
-				connectionTimeoutMillis: 5000
-			});
+			outputChannel.appendLine(`Connection details: ${JSON.stringify(connection)}`);
+			if (connection.dbType === 'redis') {
+				const url = `redis://${connection.password ? `:${connection.password}@` : ''}${connection.host}:${connection.port}`;
+				const client = createRedisClient({
+					url,
+					socket: {
+						connectTimeout: 5000
+					}
+				});
 
-			try {
-				await client.connect();
-				vscode.window.showInformationMessage(`Successfully connected to ${connection.alias || `${connection.user}@${connection.host}`}!`);
-				outputChannel.appendLine(`Successfully connected to ${connection.alias || `${connection.user}@${connection.host}`}!`);
+				outputChannel.appendLine(`Connecting to Redis: ${url}`);
+				try {
+					await client.connect();
+					vscode.window.showInformationMessage(`Successfully connected to Redis: ${connection.alias || `${connection.user}@${connection.host}`}!`);
+					outputChannel.appendLine(`Successfully connected to Redis: ${connection.alias || `${connection.user}@${connection.host}`}!`);
+					// For Redis, there are no "tables" in the same way, so we pass an empty array.
+					connectionsProvider.setActive(connectionLabel, client, []);
+					createRedisQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider);
+				} catch (error: any) {
+					vscode.window.showErrorMessage(`Failed to connect to Redis: ${error.message}`);
+					outputChannel.appendLine(`Failed to connect to Redis ${connection.alias || `${connection.user}@${connection.host}`}: ${error.message}`);
+					await client.quit();
+				}
+			} else { // Default to postgres
+				const client = new Client({
+					host: connection.host,
+					port: parseInt(connection.port, 10),
+					user: connection.user,
+					password: connection.password,
+					database: connection.database,
+					connectionTimeoutMillis: 5000
+				});
 
-				const tablesResult = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;");
-				const tables = tablesResult.rows.map(row => row.table_name);
-				connectionsProvider.setActive(connectionLabel, client, tables);
-
-				createQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider);
-			} catch (error: any) {
-				vscode.window.showErrorMessage(`Failed to connect: ${error.message}`);
-				outputChannel.appendLine(`Failed to connect to ${connection.alias || `${connection.user}@${connection.host}`}: ${error.message}`);
-				await client.end();
+				try {
+					await client.connect();
+					vscode.window.showInformationMessage(`Successfully connected to ${connection.alias || `${connection.user}@${connection.host}`}!`);
+					outputChannel.appendLine(`Successfully connected to ${connection.alias || `${connection.user}@${connection.host}`}!`);
+					const tablesResult = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;");
+					const tables = tablesResult.rows.map(row => row.table_name);
+					connectionsProvider.setActive(connectionLabel, client, tables);
+					createQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider);
+				} catch (error: any) {
+					vscode.window.showErrorMessage(`Failed to connect: ${error.message}`);
+					outputChannel.appendLine(`Failed to connect to ${connection.alias || `${connection.user}@${connection.host}`}: ${error.message}`);
+					await client.end();
+				}
 			}
 		})
 	);

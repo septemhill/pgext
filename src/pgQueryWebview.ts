@@ -66,7 +66,8 @@ export function createQueryWebviewPanel(context: vscode.ExtensionContext, output
 		async () => {
 			await client.end();
 			outputChannel.appendLine(`Disconnected from ${connection.alias || `${connection.user}@${connection.host}`}.`);
-			connectionsProvider.setInactive(connection.alias || `${connection.user}@${connection.host}`);
+			const connectionLabel = connection.alias || `${connection.user}@${connection.host}`;
+			connectionsProvider.setInactive(connectionLabel);
 		},
 		null,
 		context.subscriptions
