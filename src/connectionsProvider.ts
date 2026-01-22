@@ -62,12 +62,7 @@ export class ConnectionsProvider implements vscode.TreeDataProvider<vscode.TreeI
                 const bookmarksKey = `bookmarks.${connectionLabel}`;
                 const bookmarks = this.context.globalState.get<any[]>(bookmarksKey) || [];
                 return Promise.resolve(bookmarks.map(bookmark => {
-                    const item = new vscode.TreeItem(bookmark.name);
-                    item.iconPath = new vscode.ThemeIcon('code');
-                    item.collapsibleState = vscode.TreeItemCollapsibleState.None;
-                    item.contextValue = 'bookmarkItem';
-                    item.description = bookmark.query;
-                    item.tooltip = bookmark.query;
+                    const item = new BookmarkTreeItem(bookmark.name, bookmark, connectionLabel);
                     item.command = {
                         command: 'db-extension.openBookmark',
                         title: 'Open Bookmark',
@@ -114,5 +109,18 @@ export class ConnectionsProvider implements vscode.TreeDataProvider<vscode.TreeI
 
             return Promise.resolve(connectionItems);
         }
+    }
+}
+
+class BookmarkTreeItem extends vscode.TreeItem {
+    constructor(
+        public readonly label: string,
+        public readonly bookmark: any,
+        public readonly connectionLabel: string
+    ) {
+        super(label, vscode.TreeItemCollapsibleState.None);
+        this.contextValue = 'bookmarkItem';
+        this.iconPath = new vscode.ThemeIcon('code');
+        this.tooltip = bookmark.query;
     }
 }

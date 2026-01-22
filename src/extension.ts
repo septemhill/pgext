@@ -160,6 +160,50 @@ export function activate(context: vscode.ExtensionContext) {
 			provider.createQueryPanel(context, outputChannel, connection, activeConnection.client, connectionsProvider, bookmark.query);
 		})
 	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('postgres.editBookmark', async (bookmarkItem: any) => {
+			const { bookmark, connectionLabel } = bookmarkItem;
+			const newName = await vscode.window.showInputBox({
+				prompt: 'Enter new name for bookmark',
+				value: bookmark.name
+			});
+
+			if (newName && newName !== bookmark.name) {
+				const bookmarksKey = `bookmarks.${connectionLabel}`;
+				let bookmarks = context.globalState.get<any[]>(bookmarksKey) || [];
+				const bookmarkIndex = bookmarks.findIndex(b => b.name === bookmark.name && b.query === bookmark.query);
+
+				if (bookmarkIndex !== -1) {
+					bookmarks[bookmarkIndex].name = newName;
+					await context.globalState.update(bookmarksKey, bookmarks);
+					connectionsProvider.refresh();
+					vscode.window.showInformationMessage(`Bookmark renamed to "${newName}"`);
+				}
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('postgres.deleteBookmark', async (bookmarkItem: any) => {
+			const { bookmark, connectionLabel } = bookmarkItem;
+			const confirm = await vscode.window.showWarningMessage(
+				`Are you sure you want to delete bookmark "${bookmark.name}"?`,
+				{ modal: true },
+				'Yes'
+			);
+
+			if (confirm === 'Yes') {
+				const bookmarksKey = `bookmarks.${connectionLabel}`;
+				let bookmarks = context.globalState.get<any[]>(bookmarksKey) || [];
+				const updatedBookmarks = bookmarks.filter(b => !(b.name === bookmark.name && b.query === bookmark.query));
+
+				await context.globalState.update(bookmarksKey, updatedBookmarks);
+				connectionsProvider.refresh();
+				vscode.window.showInformationMessage(`Bookmark "${bookmark.name}" deleted`);
+			}
+		})
+	);
 }
 
 // This method is called when your extension is deactivated

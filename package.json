@@ -65,6 +65,16 @@
         "command": "db-extension.openBookmark",
         "title": "Open Bookmark",
         "icon": "$(book)"
+      },
+      {
+        "command": "postgres.editBookmark",
+        "title": "Edit Bookmark",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "postgres.deleteBookmark",
+        "title": "Delete Bookmark",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -92,6 +102,18 @@
         {
           "command": "postgres.deleteConnection",
           "when": "view == postgresView && viewItem == connectionItem",
+          "group": "inline",
+          "icon": "$(trash)"
+        },
+        {
+          "command": "postgres.editBookmark",
+          "when": "view == postgresView && viewItem == bookmarkItem",
+          "group": "inline",
+          "icon": "$(edit)"
+        },
+        {
+          "command": "postgres.deleteBookmark",
+          "when": "view == postgresView && viewItem == bookmarkItem",
           "group": "inline",
           "icon": "$(trash)"
         }
