@@ -93,6 +93,7 @@
     }
   },
   "scripts": {
+    "vscode:vsce": "vsce package --no-dependencies",
     "vscode:prepublish": "pnpm run package",
     "compile": "node esbuild.js",
     "watch": "npm-run-all -p watch:*",

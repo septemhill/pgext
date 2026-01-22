@@ -1,14 +1,35 @@
 import * as vscode from 'vscode';
 
+export interface BaseConfig {
+    id: string;
+    label: string;
+    host: string;
+    port: string | number;
+}
+
+export interface PostgresConfig extends BaseConfig {
+    type: 'postgres';
+    user: string;
+    password?: string;
+    database: string;
+}
+
+export interface RedisConfig extends BaseConfig {
+    type: 'redis';
+    password?: string;
+}
+
+export type ConnectionConfig = PostgresConfig | RedisConfig;
+
 export interface DatabaseProvider {
     type: string;
-    connect(connection: any): Promise<any>;
+    connect(connection: ConnectionConfig): Promise<any>;
     disconnect(client: any): Promise<void>;
     getTreeItems(client: any): Promise<vscode.TreeItem[]>;
     createQueryPanel(
         context: vscode.ExtensionContext,
         outputChannel: vscode.OutputChannel,
-        connection: any,
+        connection: ConnectionConfig,
         client: any,
         connectionsProvider: any
     ): void;

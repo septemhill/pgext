@@ -1,13 +1,14 @@
 import * as vscode from 'vscode';
 import { createClient as createRedisClient, RedisClientType } from 'redis';
-import { DatabaseProvider } from './index';
+import { DatabaseProvider, ConnectionConfig, RedisConfig } from './index';
 import { createRedisQueryWebviewPanel } from '../redisQueryWebview';
 
 export class RedisProvider implements DatabaseProvider {
     type = 'redis';
 
-    async connect(connection: any): Promise<RedisClientType> {
-        const url = `redis://${connection.password ? `:${connection.password}@` : ''}${connection.host}:${connection.port}`;
+    async connect(connection: ConnectionConfig): Promise<RedisClientType> {
+        const redisConfig = connection as RedisConfig;
+        const url = `redis://${redisConfig.password ? `:${redisConfig.password}@` : ''}${redisConfig.host}:${redisConfig.port}`;
         const client = createRedisClient({
             url,
             socket: {
@@ -34,7 +35,7 @@ export class RedisProvider implements DatabaseProvider {
     createQueryPanel(
         context: vscode.ExtensionContext,
         outputChannel: vscode.OutputChannel,
-        connection: any,
+        connection: ConnectionConfig,
         client: any,
         connectionsProvider: any
     ): void {

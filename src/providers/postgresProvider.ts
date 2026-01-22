@@ -1,18 +1,19 @@
 import * as vscode from 'vscode';
 import { Client, FieldDef } from 'pg';
-import { DatabaseProvider } from './index';
+import { DatabaseProvider, ConnectionConfig, PostgresConfig } from './index';
 import { createQueryWebviewPanel } from '../pgQueryWebview';
 
 export class PostgresProvider implements DatabaseProvider {
     type = 'postgres';
 
-    async connect(connection: any): Promise<Client> {
+    async connect(connection: ConnectionConfig): Promise<Client> {
+        const pgConfig = connection as PostgresConfig;
         const client = new Client({
-            host: connection.host,
-            port: parseInt(connection.port, 10),
-            user: connection.user,
-            password: connection.password,
-            database: connection.database,
+            host: pgConfig.host,
+            port: typeof pgConfig.port === 'string' ? parseInt(pgConfig.port, 10) : pgConfig.port,
+            user: pgConfig.user,
+            password: pgConfig.password,
+            database: pgConfig.database,
             connectionTimeoutMillis: 5000
         });
         await client.connect();
@@ -47,7 +48,7 @@ export class PostgresProvider implements DatabaseProvider {
     createQueryPanel(
         context: vscode.ExtensionContext,
         outputChannel: vscode.OutputChannel,
-        connection: any,
+        connection: ConnectionConfig,
         client: any,
         connectionsProvider: any
     ): void {
