@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Client, FieldDef } from 'pg';
-import { DatabaseProvider, ConnectionConfig, PostgresConfig } from './index';
+import { DatabaseProvider, ConnectionConfig, PostgresConfig, PostgresMetadata } from './index';
 import { createQueryWebviewPanel } from '../pgQueryWebview';
 
 export class PostgresProvider implements DatabaseProvider {
@@ -38,9 +38,10 @@ export class PostgresProvider implements DatabaseProvider {
         return [tablesItem];
     }
 
-    async getMetadata(client: Client): Promise<any> {
+    async getMetadata(client: Client): Promise<PostgresMetadata> {
         const tablesResult = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;");
         return {
+            type: 'postgres',
             tables: tablesResult.rows.map(row => row.table_name)
         };
     }

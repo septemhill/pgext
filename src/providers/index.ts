@@ -28,6 +28,17 @@ export interface Bookmark {
     query: string;
 }
 
+export interface PostgresMetadata {
+    type: 'postgres';
+    tables: string[];
+}
+
+export interface RedisMetadata {
+    type: 'redis';
+}
+
+export type ConnectionMetadata = PostgresMetadata | RedisMetadata;
+
 export interface DatabaseProvider {
     type: string;
     connect(connection: ConnectionConfig): Promise<any>;
@@ -42,7 +53,7 @@ export interface DatabaseProvider {
         initialQuery?: string
     ): void;
     // For TreeView metadata retrieval
-    getMetadata?(client: any): Promise<any>;
+    getMetadata?(client: any): Promise<ConnectionMetadata>;
     getFolders(connectionLabel: string): vscode.TreeItem[];
 }
 

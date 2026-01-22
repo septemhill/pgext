@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { createClient as createRedisClient, RedisClientType } from 'redis';
-import { DatabaseProvider, ConnectionConfig, RedisConfig } from './index';
+import { DatabaseProvider, ConnectionConfig, RedisConfig, RedisMetadata } from './index';
 import { createRedisQueryWebviewPanel } from '../redisQueryWebview';
 
 export class RedisProvider implements DatabaseProvider {
@@ -28,8 +28,8 @@ export class RedisProvider implements DatabaseProvider {
         return [];
     }
 
-    async getMetadata(client: RedisClientType): Promise<any> {
-        return { tables: [] };
+    async getMetadata(client: RedisClientType): Promise<RedisMetadata> {
+        return { type: 'redis' };
     }
 
     createQueryPanel(
