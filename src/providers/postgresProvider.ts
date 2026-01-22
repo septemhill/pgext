@@ -55,4 +55,21 @@ export class PostgresProvider implements DatabaseProvider {
     ): void {
         createQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider, initialQuery);
     }
+
+    getFolders(connectionLabel: string): vscode.TreeItem[] {
+        const folderItems = [];
+        const tablesItem = new vscode.TreeItem('Tables', vscode.TreeItemCollapsibleState.Collapsed);
+        tablesItem.contextValue = 'tablesFolder';
+        tablesItem.description = connectionLabel;
+        tablesItem.iconPath = new vscode.ThemeIcon('folder');
+        folderItems.push(tablesItem);
+
+        const bookmarksItem = new vscode.TreeItem('Bookmarks', vscode.TreeItemCollapsibleState.Collapsed);
+        bookmarksItem.contextValue = 'bookmarksFolder';
+        bookmarksItem.description = connectionLabel;
+        bookmarksItem.iconPath = new vscode.ThemeIcon('bookmark');
+        folderItems.push(bookmarksItem);
+
+        return folderItems;
+    }
 }

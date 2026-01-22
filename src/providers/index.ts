@@ -43,6 +43,7 @@ export interface DatabaseProvider {
     ): void;
     // For TreeView metadata retrieval
     getMetadata?(client: any): Promise<any>;
+    getFolders(connectionLabel: string): vscode.TreeItem[];
 }
 
 export class ProviderRegistry {

@@ -42,4 +42,12 @@ export class RedisProvider implements DatabaseProvider {
     ): void {
         createRedisQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider, initialQuery);
     }
+
+    getFolders(connectionLabel: string): vscode.TreeItem[] {
+        const bookmarksItem = new vscode.TreeItem('Bookmarks', vscode.TreeItemCollapsibleState.Collapsed);
+        bookmarksItem.contextValue = 'bookmarksFolder';
+        bookmarksItem.description = connectionLabel;
+        bookmarksItem.iconPath = new vscode.ThemeIcon('bookmark');
+        return [bookmarksItem];
+    }
 }

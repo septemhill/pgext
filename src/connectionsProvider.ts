@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ProviderRegistry } from './providers';
 
 export interface ActiveConnection {
     client: any;
@@ -43,21 +44,16 @@ export class ConnectionsProvider implements vscode.TreeDataProvider<vscode.TreeI
             if (element.contextValue === 'connectionItem') {
                 const connectionLabel = element.description as string;
                 const activeConnection = this.activeConnections.get(connectionLabel);
-                if (activeConnection && activeConnection.metadata && activeConnection.metadata.tables) {
-                    const folderItems = [];
-                    const tablesItem = new vscode.TreeItem('Tables', vscode.TreeItemCollapsibleState.Collapsed);
-                    tablesItem.contextValue = 'tablesFolder';
-                    tablesItem.description = connectionLabel;
-                    tablesItem.iconPath = new vscode.ThemeIcon('folder');
-                    folderItems.push(tablesItem);
 
-                    const bookmarksItem = new vscode.TreeItem('Bookmarks', vscode.TreeItemCollapsibleState.Collapsed);
-                    bookmarksItem.contextValue = 'bookmarksFolder';
-                    bookmarksItem.description = connectionLabel;
-                    bookmarksItem.iconPath = new vscode.ThemeIcon('bookmark');
-                    folderItems.push(bookmarksItem);
+                // Get connection details to find the provider
+                const connections = this.context.globalState.get<any[]>('postgres.connections') || [];
+                const connection = connections.find(c => (c.alias || `${c.user}@${c.host}`) === connectionLabel);
 
-                    return Promise.resolve(folderItems);
+                if (activeConnection && connection) {
+                    const provider = ProviderRegistry.getProvider(connection.dbType || 'postgres');
+                    if (provider) {
+                        return Promise.resolve(provider.getFolders(connectionLabel));
+                    }
                 }
             }
 
