@@ -1,0 +1,43 @@
+import * as vscode from 'vscode';
+import { createClient as createRedisClient, RedisClientType } from 'redis';
+import { DatabaseProvider } from './index';
+import { createRedisQueryWebviewPanel } from '../redisQueryWebview';
+
+export class RedisProvider implements DatabaseProvider {
+    type = 'redis';
+
+    async connect(connection: any): Promise<RedisClientType> {
+        const url = `redis://${connection.password ? `:${connection.password}@` : ''}${connection.host}:${connection.port}`;
+        const client = createRedisClient({
+            url,
+            socket: {
+                connectTimeout: 5000
+            }
+        });
+        await client.connect();
+        return client as RedisClientType;
+    }
+
+    async disconnect(client: RedisClientType): Promise<void> {
+        await client.quit();
+    }
+
+    async getTreeItems(client: RedisClientType): Promise<vscode.TreeItem[]> {
+        // Redis currently doesn't show sub-items in this extension's tree view
+        return [];
+    }
+
+    async getMetadata(client: RedisClientType): Promise<any> {
+        return { tables: [] };
+    }
+
+    createQueryPanel(
+        context: vscode.ExtensionContext,
+        outputChannel: vscode.OutputChannel,
+        connection: any,
+        client: any,
+        connectionsProvider: any
+    ): void {
+        createRedisQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider);
+    }
+}

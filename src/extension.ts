@@ -1,12 +1,11 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { createClient as createRedisClient } from 'redis';
-import { Client } from 'pg';
-import { ConnectionsProvider, ActiveConnection } from './connectionsProvider';
+import { ConnectionsProvider } from './connectionsProvider';
 import { registerAddConnectionCommand, createConnectionPanel } from './addConnection';
-import { createQueryWebviewPanel } from './pgQueryWebview';
-import { createRedisQueryWebviewPanel } from './redisQueryWebview';
+import { ProviderRegistry } from './providers';
+import { PostgresProvider } from './providers/postgresProvider';
+import { RedisProvider } from './providers/redisProvider';
 
 // Constants
 const OUTPUT_CHANNEL_NAME = 'Postgres Extension';
@@ -17,6 +16,10 @@ const COMMAND_HELLO_WORLD = 'postgres.helloWorld';
 const COMMAND_CONNECT = 'postgres.connect';
 const COMMAND_EDIT_CONNECTION = 'postgres.editConnection';
 const COMMAND_DELETE_CONNECTION = 'postgres.deleteConnection';
+
+// Register providers
+ProviderRegistry.register(new PostgresProvider());
+ProviderRegistry.register(new RedisProvider());
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -30,18 +33,14 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	outputChannel.appendLine('Congratulations, your extension "postgres" is now active!');
-	outputChannel.appendLine(`This extension now has a dedicated output channel named "${OUTPUT_CHANNEL_NAME}".`);
-
-	// The command has been defined in the package.json file
-
+	outputChannel.appendLine('Congratulations, your extension is now active!');
 
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
 	const disposable = vscode.commands.registerCommand(COMMAND_HELLO_WORLD, () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from postgres!');
+		vscode.window.showInformationMessage('Hello World from Multi-DB Extension!');
 	});
 
 	context.subscriptions.push(disposable);
@@ -51,12 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register new commands for connection actions
 	context.subscriptions.push(
 		vscode.commands.registerCommand(COMMAND_CONNECT, async (connectionItem: vscode.TreeItem) => {
-			const fullLabel = connectionItem.label as string;
-			// The label is in the format "alias (dbType)", so we extract the alias part.
-			// This is a bit of a hack. A better way would be to store the alias in a custom property of the TreeItem.
-			// For now, we'll parse it from the label.
-			const connectionLabel = fullLabel.substring(0, fullLabel.lastIndexOf(' (')).trim();
-
+			const connectionLabel = connectionItem.description as string;
 			const connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
 			const connection = connections.find(c => (c.alias || `${c.user}@${c.host}`) === connectionLabel);
 
@@ -65,65 +59,34 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			outputChannel.appendLine(`Connecting to ${connection.alias || `${connection.user}@${connection.host}`}`);
-			vscode.window.showInformationMessage(`Connecting to ${connection.alias || `${connection.user}@${connection.host}`}`);
+			const provider = ProviderRegistry.getProvider(connection.dbType || 'postgres');
+			if (!provider) {
+				vscode.window.showErrorMessage(`No provider found for database type: ${connection.dbType}`);
+				return;
+			}
 
-			outputChannel.appendLine(`Connection details: ${JSON.stringify(connection)}`);
-			if (connection.dbType === 'redis') {
-				const url = `redis://${connection.password ? `:${connection.password}@` : ''}${connection.host}:${connection.port}`;
-				const client = createRedisClient({
-					url,
-					socket: {
-						connectTimeout: 5000
-					}
-				});
+			outputChannel.appendLine(`Connecting to ${connectionLabel} (${provider.type})`);
+			vscode.window.showInformationMessage(`Connecting to ${connectionLabel}...`);
 
-				outputChannel.appendLine(`Connecting to Redis: ${url}`);
-				try {
-					await client.connect();
-					vscode.window.showInformationMessage(`Successfully connected to Redis: ${connection.alias || `${connection.user}@${connection.host}`}!`);
-					outputChannel.appendLine(`Successfully connected to Redis: ${connection.alias || `${connection.user}@${connection.host}`}!`);
-					// For Redis, there are no "tables" in the same way, so we pass an empty array.
-					connectionsProvider.setActive(connectionLabel, client, []);
-					createRedisQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider);
-				} catch (error: any) {
-					vscode.window.showErrorMessage(`Failed to connect to Redis: ${error.message}`);
-					outputChannel.appendLine(`Failed to connect to Redis ${connection.alias || `${connection.user}@${connection.host}`}: ${error.message}`);
-					await client.quit();
-				}
-			} else { // Default to postgres
-				const client = new Client({
-					host: connection.host,
-					port: parseInt(connection.port, 10),
-					user: connection.user,
-					password: connection.password,
-					database: connection.database,
-					connectionTimeoutMillis: 5000
-				});
+			try {
+				const client = await provider.connect(connection);
+				vscode.window.showInformationMessage(`Successfully connected to ${connectionLabel}!`);
+				outputChannel.appendLine(`Successfully connected to ${connectionLabel}!`);
 
-				try {
-					await client.connect();
-					vscode.window.showInformationMessage(`Successfully connected to ${connection.alias || `${connection.user}@${connection.host}`}!`);
-					outputChannel.appendLine(`Successfully connected to ${connection.alias || `${connection.user}@${connection.host}`}!`);
-					const tablesResult = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;");
-					const tables = tablesResult.rows.map(row => row.table_name);
-					connectionsProvider.setActive(connectionLabel, client, tables);
-					createQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider);
-				} catch (error: any) {
-					vscode.window.showErrorMessage(`Failed to connect: ${error.message}`);
-					outputChannel.appendLine(`Failed to connect to ${connection.alias || `${connection.user}@${connection.host}`}: ${error.message}`);
-					await client.end();
-				}
+				const metadata = provider.getMetadata ? await provider.getMetadata(client) : {};
+				connectionsProvider.setActive(connectionLabel, client, metadata);
+
+				provider.createQueryPanel(context, outputChannel, connection, client, connectionsProvider);
+			} catch (error: any) {
+				vscode.window.showErrorMessage(`Failed to connect: ${error.message}`);
+				outputChannel.appendLine(`Failed to connect to ${connectionLabel}: ${error.message}`);
 			}
 		})
 	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand(COMMAND_EDIT_CONNECTION, (connectionItem: vscode.TreeItem) => {
-			const fullLabel = connectionItem.label as string;
-			// The label is in the format "alias (dbType)", so we extract the alias part.
-			const connectionLabel = fullLabel.substring(0, fullLabel.lastIndexOf(' (')).trim();
-
+			const connectionLabel = connectionItem.description as string;
 			outputChannel.appendLine(`Editing connection ${connectionLabel}`);
 
 			const connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
@@ -139,9 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand(COMMAND_DELETE_CONNECTION, async (connectionItem: vscode.TreeItem) => {
-			const fullLabel = connectionItem.label as string;
-			// The label is in the format "alias (dbType)", so we extract the alias part.
-			const connectionLabel = fullLabel.substring(0, fullLabel.lastIndexOf(' (')).trim();
+			const connectionLabel = connectionItem.description as string;
 
 			const confirm = await vscode.window.showWarningMessage(
 				`Are you sure you want to delete the connection "${connectionLabel}"?`,
@@ -153,13 +114,13 @@ export function activate(context: vscode.ExtensionContext) {
 				let connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
 				const updatedConnections = connections.filter(c => (c.alias || `${c.user}@${c.host}`) !== connectionLabel);
 
-				outputChannel.appendLine(`Updated connections: ${JSON.stringify(updatedConnections)}`); // Add this line
+				outputChannel.appendLine(`Updated connections: ${JSON.stringify(updatedConnections)}`);
 				await context.globalState.update(CONNECTIONS_KEY, updatedConnections);
 				connectionsProvider.refresh();
 				connectionsProvider.setInactive(connectionLabel);
 
-				outputChannel.appendLine(`Deleting connection ${connectionItem.label}`);
-				vscode.window.showInformationMessage(`Successfully deleted connection "${connectionItem.label}"`);
+				outputChannel.appendLine(`Deleting connection ${connectionLabel}`);
+				vscode.window.showInformationMessage(`Successfully deleted connection "${connectionLabel}"`);
 			}
 		})
 	);
