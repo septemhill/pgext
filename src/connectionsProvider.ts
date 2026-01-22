@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import { ProviderRegistry } from './providers';
+import { ProviderRegistry, ConnectionMetadata } from './providers';
 
 export interface ActiveConnection {
     client: any;
-    metadata: any;
+    metadata: ConnectionMetadata;
 }
 
 export class ConnectionsProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
@@ -23,7 +23,7 @@ export class ConnectionsProvider implements vscode.TreeDataProvider<vscode.TreeI
         return element;
     }
 
-    setActive(connectionLabel: string, client: any, metadata: any): void {
+    setActive(connectionLabel: string, client: any, metadata: ConnectionMetadata): void {
         this.activeConnections.set(connectionLabel, { client, metadata });
         this.refresh();
     }
@@ -80,7 +80,7 @@ export class ConnectionsProvider implements vscode.TreeDataProvider<vscode.TreeI
             if (element.contextValue === 'tablesFolder') {
                 const connectionLabel = element.description as string;
                 const activeConnection = this.activeConnections.get(connectionLabel);
-                if (activeConnection && activeConnection.metadata && activeConnection.metadata.tables) {
+                if (activeConnection && activeConnection.metadata.type === 'postgres') {
                     return Promise.resolve(activeConnection.metadata.tables.map((table: string) => {
                         const item = new vscode.TreeItem(table);
                         item.iconPath = new vscode.ThemeIcon('symbol-struct');

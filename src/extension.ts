@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { ConnectionsProvider } from './connectionsProvider';
 import { registerAddConnectionCommand, createConnectionPanel } from './addConnection';
-import { ProviderRegistry } from './providers';
+import { ProviderRegistry, ConnectionMetadata } from './providers';
 import { PostgresProvider } from './providers/postgresProvider';
 import { RedisProvider } from './providers/redisProvider';
 
@@ -73,7 +73,16 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.window.showInformationMessage(`Successfully connected to ${connectionLabel}!`);
 				outputChannel.appendLine(`Successfully connected to ${connectionLabel}!`);
 
-				const metadata = provider.getMetadata ? await provider.getMetadata(client) : {};
+				let metadata: ConnectionMetadata;
+				if (provider.getMetadata) {
+					metadata = await provider.getMetadata(client);
+				} else {
+					if (provider.type === 'redis') {
+						metadata = { type: 'redis' };
+					} else {
+						metadata = { type: 'postgres', tables: [] };
+					}
+				}
 				connectionsProvider.setActive(connectionLabel, client, metadata);
 
 				provider.createQueryPanel(context, outputChannel, connection, client, connectionsProvider);
