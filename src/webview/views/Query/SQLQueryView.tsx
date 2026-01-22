@@ -11,7 +11,7 @@ interface QueryResult {
 }
 
 const SQLQueryView: React.FC = () => {
-    const [sqlQuery, setSqlQuery] = useState('SELECT * FROM your_table LIMIT 100;');
+    const [sqlQuery, setSqlQuery] = useState((window as any).initialQuery || 'SELECT * FROM your_table LIMIT 100;');
     const [result, setResult] = useState<QueryResult | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +67,9 @@ const SQLQueryView: React.FC = () => {
                 />
                 <div className="toolbar">
                     <button className="primary" onClick={executeQuery}>Run Query</button>
+                    <button className="secondary" onClick={() => {
+                        vscodeApi.postMessage({ command: 'saveQuery', query: sqlQuery });
+                    }} style={{ marginLeft: '8px' }}>Save</button>
                 </div>
             </div>
 
@@ -102,6 +105,15 @@ const SQLQueryView: React.FC = () => {
           cursor: pointer;
         }
         button.primary:hover { background: var(--vscode-button-hover-background); }
+        button.secondary { 
+          background: var(--vscode-button-secondaryBackground); 
+          color: var(--vscode-button-secondaryForeground); 
+          border: none;
+          padding: 6px 12px;
+          border-radius: 2px;
+          cursor: pointer;
+        }
+        button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
       `}</style>
         </div>
     );

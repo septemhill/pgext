@@ -124,6 +124,33 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		})
 	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('db-extension.openBookmark', async (bookmark: any, connectionLabel: string) => {
+			const connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
+			const connection = connections.find(c => (c.alias || `${c.user}@${c.host}`) === connectionLabel);
+
+			if (!connection) {
+				vscode.window.showErrorMessage('Connection details not found.');
+				return;
+			}
+
+			const provider = ProviderRegistry.getProvider(connection.dbType || 'postgres');
+			if (!provider) {
+				vscode.window.showErrorMessage(`No provider found for database type: ${connection.dbType}`);
+				return;
+			}
+
+			const activeConnection = connectionsProvider.getActiveConnection(connectionLabel);
+			if (!activeConnection) {
+				vscode.window.showErrorMessage(`Please connect to "${connectionLabel}" before opening bookmarks.`);
+				return;
+			}
+
+			// Open the panel with the bookmarked query and the active client.
+			provider.createQueryPanel(context, outputChannel, connection, activeConnection.client, connectionsProvider, bookmark.query);
+		})
+	);
 }
 
 // This method is called when your extension is deactivated

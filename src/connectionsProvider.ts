@@ -34,18 +34,51 @@ export class ConnectionsProvider implements vscode.TreeDataProvider<vscode.TreeI
         }
     }
 
+    getActiveConnection(connectionLabel: string): ActiveConnection | undefined {
+        return this.activeConnections.get(connectionLabel);
+    }
+
     getChildren(element?: vscode.TreeItem): Thenable<vscode.TreeItem[]> {
         if (element) {
             if (element.contextValue === 'connectionItem') {
                 const connectionLabel = element.description as string;
                 const activeConnection = this.activeConnections.get(connectionLabel);
                 if (activeConnection && activeConnection.metadata && activeConnection.metadata.tables) {
+                    const folderItems = [];
                     const tablesItem = new vscode.TreeItem('Tables', vscode.TreeItemCollapsibleState.Collapsed);
                     tablesItem.contextValue = 'tablesFolder';
                     tablesItem.description = connectionLabel;
                     tablesItem.iconPath = new vscode.ThemeIcon('folder');
-                    return Promise.resolve([tablesItem]);
+                    folderItems.push(tablesItem);
+
+                    const bookmarksItem = new vscode.TreeItem('Bookmarks', vscode.TreeItemCollapsibleState.Collapsed);
+                    bookmarksItem.contextValue = 'bookmarksFolder';
+                    bookmarksItem.description = connectionLabel;
+                    bookmarksItem.iconPath = new vscode.ThemeIcon('bookmark');
+                    folderItems.push(bookmarksItem);
+
+                    return Promise.resolve(folderItems);
                 }
+            }
+
+            if (element.contextValue === 'bookmarksFolder') {
+                const connectionLabel = element.description as string;
+                const bookmarksKey = `bookmarks.${connectionLabel}`;
+                const bookmarks = this.context.globalState.get<any[]>(bookmarksKey) || [];
+                return Promise.resolve(bookmarks.map(bookmark => {
+                    const item = new vscode.TreeItem(bookmark.name);
+                    item.iconPath = new vscode.ThemeIcon('code');
+                    item.collapsibleState = vscode.TreeItemCollapsibleState.None;
+                    item.contextValue = 'bookmarkItem';
+                    item.description = bookmark.query;
+                    item.tooltip = bookmark.query;
+                    item.command = {
+                        command: 'db-extension.openBookmark',
+                        title: 'Open Bookmark',
+                        arguments: [bookmark, connectionLabel]
+                    };
+                    return item;
+                }));
             }
 
             if (element.contextValue === 'tablesFolder') {

@@ -37,8 +37,9 @@ export class RedisProvider implements DatabaseProvider {
         outputChannel: vscode.OutputChannel,
         connection: ConnectionConfig,
         client: any,
-        connectionsProvider: any
+        connectionsProvider: any,
+        initialQuery?: string
     ): void {
-        createRedisQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider);
+        createRedisQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider, initialQuery);
     }
 }

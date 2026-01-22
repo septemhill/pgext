@@ -2,7 +2,7 @@
   "name": "postgres",
   "displayName": "postgres",
   "description": "none for now ",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.105.0"
   },
@@ -31,7 +31,8 @@
       "postgres-container": [
         {
           "id": "postgresView",
-          "name": "Connections"
+          "name": "Connections",
+          "icon": "media/icon.svg"
         }
       ]
     },
@@ -59,6 +60,11 @@
         "command": "postgres.deleteConnection",
         "title": "Delete Connection",
         "icon": "$(trash)"
+      },
+      {
+        "command": "db-extension.openBookmark",
+        "title": "Open Bookmark",
+        "icon": "$(book)"
       }
     ],
     "menus": {

@@ -5,7 +5,7 @@ import { vscodeApi } from '../../vscode';
 import { useVSCodeMessage } from '../../hooks/useVSCodeMessage';
 
 const RedisQueryView: React.FC = () => {
-    const [redisCommand, setRedisCommand] = useState('GET your_key');
+    const [redisCommand, setRedisCommand] = useState((window as any).initialQuery || 'GET your_key');
     const [result, setResult] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +48,9 @@ const RedisQueryView: React.FC = () => {
                 />
                 <div className="toolbar">
                     <button className="primary" onClick={executeCommand}>Run Command</button>
+                    <button className="secondary" onClick={() => {
+                        vscodeApi.postMessage({ command: 'saveQuery', query: redisCommand });
+                    }} style={{ marginLeft: '8px' }}>Save</button>
                 </div>
             </div>
 
@@ -81,6 +84,15 @@ const RedisQueryView: React.FC = () => {
           cursor: pointer;
         }
         button.primary:hover { background: var(--vscode-button-hover-background); }
+        button.secondary { 
+          background: var(--vscode-button-secondaryBackground); 
+          color: var(--vscode-button-secondaryForeground); 
+          border: none;
+          padding: 6px 12px;
+          border-radius: 2px;
+          cursor: pointer;
+        }
+        button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
       `}</style>
         </div>
     );

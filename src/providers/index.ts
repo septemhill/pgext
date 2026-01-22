@@ -21,6 +21,13 @@ export interface RedisConfig extends BaseConfig {
 
 export type ConnectionConfig = PostgresConfig | RedisConfig;
 
+export interface Bookmark {
+    id: string;
+    connectionLabel: string;
+    name: string;
+    query: string;
+}
+
 export interface DatabaseProvider {
     type: string;
     connect(connection: ConnectionConfig): Promise<any>;
@@ -31,7 +38,8 @@ export interface DatabaseProvider {
         outputChannel: vscode.OutputChannel,
         connection: ConnectionConfig,
         client: any,
-        connectionsProvider: any
+        connectionsProvider: any,
+        initialQuery?: string
     ): void;
     // For TreeView metadata retrieval
     getMetadata?(client: any): Promise<any>;

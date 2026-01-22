@@ -50,8 +50,9 @@ export class PostgresProvider implements DatabaseProvider {
         outputChannel: vscode.OutputChannel,
         connection: ConnectionConfig,
         client: any,
-        connectionsProvider: any
+        connectionsProvider: any,
+        initialQuery?: string
     ): void {
-        createQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider);
+        createQueryWebviewPanel(context, outputChannel, connection, client, connectionsProvider, initialQuery);
     }
 }
