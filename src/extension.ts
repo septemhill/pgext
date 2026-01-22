@@ -110,6 +110,43 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
+		vscode.commands.registerCommand('postgres.disconnect', async (connectionItem: vscode.TreeItem) => {
+			const connectionLabel = connectionItem.description as string;
+			const activeConnection = connectionsProvider.getActiveConnection(connectionLabel);
+
+			if (!activeConnection) {
+				vscode.window.showInformationMessage(`Connection "${connectionLabel}" is not active.`);
+				return;
+			}
+
+			const connections = context.globalState.get<any[]>(CONNECTIONS_KEY) || [];
+			const connection = connections.find(c => (c.alias || `${c.user}@${c.host}`) === connectionLabel);
+
+			if (!connection) {
+				vscode.window.showErrorMessage('Connection details not found.');
+				return;
+			}
+
+			const provider = ProviderRegistry.getProvider(connection.dbType || 'postgres');
+			if (!provider) {
+				vscode.window.showErrorMessage(`No provider found for database type: ${connection.dbType}`);
+				return;
+			}
+
+			outputChannel.appendLine(`Disconnecting from ${connectionLabel} (${provider.type})`);
+			try {
+				await provider.disconnect(activeConnection.client);
+				connectionsProvider.setInactive(connectionLabel);
+				vscode.window.showInformationMessage(`Successfully disconnected from ${connectionLabel}.`);
+				outputChannel.appendLine(`Successfully disconnected from ${connectionLabel}.`);
+			} catch (error: any) {
+				vscode.window.showErrorMessage(`Failed to disconnect: ${error.message}`);
+				outputChannel.appendLine(`Failed to disconnect from ${connectionLabel}: ${error.message}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
 		vscode.commands.registerCommand(COMMAND_DELETE_CONNECTION, async (connectionItem: vscode.TreeItem) => {
 			const connectionLabel = connectionItem.description as string;
 

@@ -102,10 +102,8 @@ export function createRedisQueryWebviewPanel(
     );
 
     panel.onDidDispose(
-        async () => {
-            await client.quit();
-            outputChannel.appendLine(`Disconnected from Redis: ${connection.alias || `${connection.user}@${connection.host}`}.`);
-            connectionsProvider.setInactive(connection.alias || `${connection.user}@${connection.host}`);
+        () => {
+            outputChannel.appendLine(`Redis query panel for ${connection.alias || `${connection.user}@${connection.host}`} closed.`);
         },
         null,
         context.subscriptions

@@ -2,7 +2,7 @@
   "name": "postgres",
   "displayName": "postgres",
   "description": "none for now ",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.105.0"
   },
@@ -75,6 +75,11 @@
         "command": "postgres.deleteBookmark",
         "title": "Delete Bookmark",
         "icon": "$(trash)"
+      },
+      {
+        "command": "postgres.disconnect",
+        "title": "Close Connection",
+        "icon": "$(close)"
       }
     ],
     "menus": {
@@ -92,6 +97,12 @@
           "when": "view == postgresView && viewItem == connectionItem",
           "group": "inline",
           "icon": "$(plug)"
+        },
+        {
+          "command": "postgres.disconnect",
+          "when": "view == postgresView && viewItem == connectionItem",
+          "group": "inline",
+          "icon": "$(close)"
         },
         {
           "command": "postgres.editConnection",
